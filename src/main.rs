@@ -12,6 +12,7 @@ fn main() {
       .read_line(&mut guess)
       .expect("Failed to read line");
     let guess: u32 = match guess.trim().parse() {
+      // Note that `=>` is a separator between a pattern and an arm. A closure is like `|x| x + 1`.
       Err(_) => continue,
       Ok(n) => n,
     };
