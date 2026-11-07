@@ -66,7 +66,7 @@ fn ownership() {
 
 static G_VAR: i32 = 5;
 
-// The arg can also be &String due to deref coercions.
+// The arg can also be &String due to deref coercion.
 fn refs(s: &str) {
   // Point to a static variable (&i32)
   let r1 = &G_VAR;
@@ -79,15 +79,20 @@ fn refs(s: &str) {
   r2.make_ascii_uppercase();
   // Point to a variable holding a heap value (&String)
   let r3 = &s;
-  /* Still with reference r3 to be used, Error: cannot move out of s because it is borrowed
+  /* Still with reference r3 to be used, Error: cannot move out of `s` because it is borrowed
   let s1 = s;
   */
   // Point to a static string value (&str)
-  let r4 = "This is a world!";
+  /* Variables being mutable means their values can be changed, while references being mutable means
+   * they should point to mutable data and can change its value. Static values aren't mutable.
+   * Error: expected `&mut str`, found `&'static str`
+  let r4: &mut str = "this world ";
+  */
+  let r4 = "this world ";
   // Point to a static string value (&str)
-  let r5 = &r4[10..];
+  let r5 = &r4[5..10];
   //Hello, world!
-  println!("{r3}, {r5}");
+  println!("{r3}, {r5}!");
 
   let mut a = [1, 1];
   // Point to a stack array value (slice) (&mut [i32])
@@ -126,7 +131,7 @@ fn reborrow() {
   // Mutable references
   let r3 = &mut i;
   /* If r2 is to be used here, that mutable borrow r3 will fail with Error: cannot borrow `i` as
-   * mutable because it is also borrowed as immutable
+   * mutable because it is also borrowed as immutable.
   println!("{r2}");
   */
   // Move: r3 is invalidated as the original.
@@ -138,7 +143,7 @@ fn reborrow() {
   //6
   println!("{r4}");
 
-  // Immutable reborrow: mutation is blocked.
+  // Immutable reborrow: Mutation is blocked.
   let r5 = &*r4;
   /* Error: cannot assign to *r4 because it is borrowed
    *r4 = 7;
@@ -165,7 +170,7 @@ fn reborrow() {
   println!("{r4}");
 
   let mut guess = String::new();
-  // Implicit reborrow for passing parameters
+  // Implicit reborrow for passing params
   io::stdin()
     .read_line(&mut guess)
     .expect("Failed to read line");
