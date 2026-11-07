@@ -61,7 +61,7 @@ fn ownership() {
   let mut b = a;
   b.1 = 'b';
   //(0, 'a'), (0, 'b')
-  println!("{:?}, {:?}", a, b)
+  println!("{:?}, {:?}", a, b);
 } // s1 drops "world" right before it goes out of scope.
 
 static G_VAR: i32 = 5;
@@ -151,7 +151,7 @@ fn reborrow() {
   //6, 6
   println!("{r4}, {r5}");
   // Mutable reborrow: r4 is blocked as the original.
-  /* Equivalent to a implicit reborrow via the typed annotation
+  /* Equivalent to a implicit reborrow via the type annotation
   let r6: &mut i32 = r4;
   */
   let r6 = &mut *r4;
