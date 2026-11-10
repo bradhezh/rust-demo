@@ -13,6 +13,8 @@ fn main() {
   println!("{s}");
   reborrow();
   structs();
+  enums();
+  options();
 }
 
 fn guessing_game() {
@@ -260,3 +262,97 @@ fn structs() {
   //label1.size() = 4000; Label::size(&label1) = 4000
   dbg!(label1.size(), Label::size(&label1));
 } // label1 drops "Label 2" right before it goes out of scope.
+
+#[derive(Debug)]
+enum Message {
+  // Unit struct
+  Quit,
+  // Struct
+  Pos { x: i32, y: i32 },
+  // Tuple struct
+  Write(String),
+}
+
+impl Message {
+  fn foo(&self) {
+    match self {
+      Message::Quit => println!("Quit"),
+      Message::Pos { x, y } => println!("Pos: {x}, {y}"),
+      /* Note that "matching on a reference type with a non-reference pattern implicitly borrows the
+       * contents", so don't use `ref` here to explicitly borrow again.
+      Message::Write(ref s) => println!("Write: {s}"),
+      */
+      Message::Write(s) => println!("Write: {s}"),
+    }
+  }
+}
+
+fn enums() {
+  let q = Message::Quit;
+  let m = Message::Pos { x: 1, y: 2 };
+  let w = Message::Write(String::from("hello"));
+  //Quit
+  q.foo();
+  //Pos: 1, 2
+  m.foo();
+  //Write: hello
+  w.foo();
+  //w = Write("hello")
+  dbg!(w);
+}
+
+/*
+enum Option<T> {
+  None,
+  Some(T),
+}
+*/
+
+fn op_on_nullable<T: std::fmt::Debug>(x: Option<T>, i: i32) {
+  /* Equivalent to
+  let x = match x {
+    Some(v) => v,
+    None => return,
+  };
+  */
+  let Some(x) = x else {
+    return;
+  };
+  /* Or
+  if let Some(x) = x {
+    ...
+  }
+  */
+
+  // Value-based
+  match i {
+    3 => println!("{x:?} and three"),
+    7 => println!("{x:?} and Seven"),
+    /* Equivalent to
+    _ => println!("{x:?} and {i}"),
+    */
+    other => println!("{x:?} and {other}"),
+    /* Do nothing
+    _ => (),
+    */
+  }
+}
+
+fn options() {
+  let five = Some(5);
+  let a = Some('a');
+  // Reference used to avoid Move for String
+  let s = String::from("hello");
+  let hello = Some(&s);
+  let null: Option<i32> = None;
+  // All Copy
+  //5 and three
+  op_on_nullable(five, 3);
+  //'a' and Seven
+  op_on_nullable(a, 7);
+  //"hello" and 10
+  op_on_nullable(hello, 10);
+  op_on_nullable(null, 0);
+  //five = Some(5); a = Some('a'); &s = "hello"; hello = Some("hello"); null = None
+  dbg!(five, a, &s, hello, null);
+}
