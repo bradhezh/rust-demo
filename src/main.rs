@@ -341,8 +341,8 @@ fn op_on_nullable<T: std::fmt::Debug>(x: Option<T>, i: i32) {
 fn options() {
   let five = Some(5);
   let a = Some('a');
-  // Reference used to avoid Move for String
   let s = String::from("hello");
+  // Reference used to avoid Move for String
   let hello = Some(&s);
   let null: Option<i32> = None;
   // All Copy
