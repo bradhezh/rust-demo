@@ -26,19 +26,20 @@ fn guessing_game() {
       .read_line(&mut guess)
       .expect("Failed to read line");
     let guess: u32 = match guess.trim().parse() {
-      // Note that `=>` is a separator between a pattern and an arm. A closure is like `|x| x + 1`.
-      Err(_) => continue,
+      // Note that `=>` is a separator between the pattern and its code of an arm. A closure is like
+      // `|x| x + 1`.
       Ok(n) => n,
+      Err(_) => continue,
     };
     println!("Your guess: {guess}");
 
     match guess.cmp(&secret) {
+      Ordering::Less => println!("Too small!"),
+      Ordering::Greater => println!("Too big!"),
       Ordering::Equal => {
         println!("You win!");
         break;
       }
-      Ordering::Less => println!("Too small!"),
-      Ordering::Greater => println!("Too big!"),
     }
   }
 }
