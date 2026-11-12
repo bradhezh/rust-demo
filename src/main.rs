@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::io;
+use std::io::{self, Read};
 
 use rand::prelude::*;
 
@@ -15,6 +15,10 @@ fn main() {
   structs();
   enums();
   options();
+  borrow_checker();
+  lifetime();
+  struct_ref_lifetime();
+  generic_mut_ref();
 }
 
 fn guessing_game() {
@@ -356,4 +360,131 @@ fn options() {
   op_on_nullable(null, 0);
   //five = Some(5); a = Some('a'); &s = "hello"; hello = Some("hello"); null = None
   dbg!(five, a, &s, hello, null);
+}
+
+fn borrow_checker() {
+  // 1. The elem type is inferred as integers, which can default to i32.
+  let mut opt = [0; 1];
+  io::stdin()
+    // 2. Then determined as u8 for the demand. Note that type inference might not be entirely
+    // determined at declarations.
+    .read_exact(&mut opt)
+    .expect("Failed to read");
+  let opt = match opt[0] {
+    b'y' | b'Y' => true,
+    _ => false,
+  };
+
+  let s = String::from("hello");
+  // Reference to `s` or "world" depending on runtime, while the borrow checker conservatively
+  // compares `r` with `s`.
+  let r = if opt { &s } else { "world" };
+  /* Error: cannot move out of `s` because it is borrowed
+  let s1 = s;
+  */
+  println!("{r}");
+}
+
+/* Error: missing lifetime specifier; this function’s return type contains a borrowed value, but the
+ * signature does not say whether it is borrowed from `x` or `y`
+fn longest(x: &str, y: &str) -> &str {
+*/
+// The output is treated as both `x` and `y` for lifetime checking, meaning the output lifetime
+// should be contained within the smaller lifetime of the data referenced by `x` and the data
+// referenced by `y`.
+fn longest<'a>(x: &'a str, y: &'a str) -> &'a str {
+  if x.len() > y.len() { x } else { y }
+}
+
+/* Auto-deduced as `fn new_ref<'a>(input: &'a String) -> &'a str`, meaning the output is treated as
+ * `input` for lifetime checking
+fn new_ref(input: &String) -> &str {
+*/
+fn new_ref(input: &String) -> &'static str {
+  println!("{input}");
+  "hello"
+}
+
+fn lifetime() {
+  let s1 = String::from("longest");
+  let result;
+  /* If s2 is within this block scope, the function call will fail with Error: s2 does not live long
+   * enough.
+  {
+  */
+  let s2 = String::from("a");
+  // `result` references "longest" at runtime, while the borrow checker compares it with both s1 and
+  // s2 based on the lifetime relationship from the function signature.
+  result = longest(&s1, &s2);
+  /*
+  }
+  */
+  //longest
+  println!("{result}");
+
+  //longest
+  let r = new_ref(&s1);
+  // With auto-deduction, `r` would be treated as a reference to s1, and this would fail with Error:
+  // cannot move out of s1 because it is borrowed.
+  let _s1 = s1;
+  //hello
+  println!("{r}");
+}
+
+/* Error: missing lifetime specifier
+struct Ref {
+  s: &str,
+}
+*/
+#[derive(Debug)]
+struct Ref<'a> {
+  _s: &'a str,
+}
+
+// `_` as the elided lifetime, here is the only one input lifetime.
+fn new_ref1(input: &String) -> Ref<'_> {
+  Ref { _s: input }
+}
+
+fn struct_ref_lifetime() {
+  let s = String::from("hello");
+  let r = new_ref1(&s);
+  /* Error: cannot move out of `s` because it is borrowed
+  let s1 = s;
+  */
+  //Ref { _s: "hello" }
+  println!("{r:?}");
+}
+
+#[derive(Debug)]
+enum MutRef<'a, T> {
+  Ref(&'a mut T),
+}
+
+fn generic_mut_ref() {
+  let mut s = String::from("hello");
+  let r1 = &mut s;
+  /* Implicit reborrow */
+  let mut r2 = MutRef::Ref(r1);
+  /* Some(T): Move for mutable references
+  let mut r2 = Some(r1);
+  */
+  /* Reborrow: The original blocked
+  println!("{r1}");
+  */
+  match r2 {
+    /* MutRef: Note that Ref(&'a mut T) serves as the pattern source, not the dest slot for `r`
+     * here, so `ref` is used to avoid Move for mutable references. */
+    MutRef::Ref(ref mut r) => r.push_str(", world"),
+    /* Some(T)
+    Some(ref mut r) => r.push_str(", world"),
+    _ => (),
+    */
+  }
+  //MutRef: Ref("hello, world")
+  //Some(T): Some("hello, world")
+  println!("{r2:?}");
+  // Reborrow: The original resumed: hello, world
+  /* Move: Error: borrow of moved value: r1 */
+  println!("{r1}");
 }
