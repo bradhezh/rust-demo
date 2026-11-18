@@ -115,6 +115,9 @@ fn reborrow() {
   //6
   println!("{r2}");
   // Immutable Reborrow: Mutation is blocked.
+  /* Equivalent to implicit reborrowing via the type annotation
+  let r3: &i32 = r2;
+  */
   let r3 = &*r2;
   /* Error: cannot assign to *r2 because it is borrowed
    *r2 = 7;
