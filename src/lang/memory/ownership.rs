@@ -115,7 +115,7 @@ fn reborrow() {
   //6
   println!("{r2}");
   // Immutable Reborrow: Mutation is blocked.
-  /* Equivalent to implicit reborrowing via the type annotation
+  /* Equivalent to Implicit Reborrow via the type annotation
   let r3: &i32 = r2;
   */
   let r3 = &*r2;
@@ -125,7 +125,7 @@ fn reborrow() {
   //6, 6
   println!("{r2}, {r3}");
   // Mutable Reborrow: r2 is blocked as the original.
-  /* Equivalent to implicit reborrowing via the type annotation
+  /* Equivalent to Implicit Reborrow via the type annotation
   let r3: &mut i32 = r2;
   */
   let r3 = &mut *r2;
@@ -147,7 +147,7 @@ fn reborrow() {
   */
 
   let mut s = String::new();
-  // Implicit reborrowing for passing params
+  // Implicit Reborrow for passing params
   io::stdin().read_line(&mut s).expect("Failed to read line");
   // Resumed
   println!("{s}");

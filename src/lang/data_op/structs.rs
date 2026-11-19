@@ -1,27 +1,24 @@
 pub fn run() {
   structs();
+  struct_ref_lifetime();
   enums();
   options();
-  generic_mut_ref();
 }
 
-// Structs follow Move by default unless explicitly implementing Copy. Note that Rust types are
-// nominal rather than structural.
 #[derive(Debug)]
 struct Label {
-  // The struct (specifically the field) is the owner.
-  text: String,
+  _text: String,
   width: u32,
   height: u32,
 }
 
-// There can be multiple impl blocks for a struct.
+// There can be multiple impl blocks for one type.
 impl Label {
-  // Associated functions. `Self` is a type alias of the struct.
+  // Associated functions. `Self` is an alias of the type.
 
   fn new(text: &str, width: u32, height: u32) -> Self {
     Self {
-      text: String::from(text),
+      _text: String::from(text),
       width,
       height,
     }
@@ -54,74 +51,133 @@ fn structs() {
   let mut pos2 = pos1;
   pos2.0 = 2;
   pos2.1 = 2;
-  //pos1 = Pos(1, 1); pos2 = Pos(2, 2)
-  dbg!(pos1, pos2);
+  //Pos(1, 1), Pos(2, 2)
+  println!("{pos1:?}, {pos2:?}");
 
   // Default Move
   let mut label1 = Label::new("Label 1", 100, 10);
-  let label2 = Label::new("Label 2", dbg!(100 * 2), 20);
-  // Fields
-  // println! auto-refs params, whereas dbg! not.
-  //&label1.text = "Label 1"; label1.width = 100; label1.height = 10
-  dbg!(&label1.text, label1.width, label1.height);
-  // Move: label2 (or label2.text) invalidated, "Label 1" dropped
+  let label2 = Label::new("Label 2", 200, 20);
+  //Label { _text: "Label 1", width: 100, height: 10 }
+  println!("{label1:?}");
+  /* Move: label2 (or label2._text) invalidated, "Label 1" dropped */
   label1 = label2;
-  /* Or
-  label1.text = label2.text;
-  // Or field `text` moved while others copied
+  /* Or (Partial Move)
+  label1._text = label2._text;
+  // Or (Partial Move with Copy for others)
   label1 = Label { ..label2 };
   */
   // label1 is the owner of "Label 2".
-  //&label1 = Label { text: "Label 2", ...}
-  dbg!(&label1);
-  /* label2 (or label2.text) is invalid. Error: borrow of (partially) moved value: label2
-  dbg!(&label2);
-  dbg!(&label2.text);
-  // If only partially moved, left fields are still valid.
-  dbg!(&label2.width, &label2.height);
+  //Label { _text: "Label 2", ...}
+  println!("{label1:?}");
+  /* label2 (or label2._text) is invalid. Error: borrow of (partially) moved value: label2
+  println!("{label2:?}");
+  println!("{}", label2._text);
+  // Partial Move: Other fields remain valid.
+  println!("{}, {}", label2.width, label2.height);
   */
 
   // Auto-ref/deref for method calls
-  //label1.size() = 4000; Label::size(&label1) = 4000
-  dbg!(label1.size(), Label::size(&label1));
+  //4000, 4000
+  println!("{}, {}", label1.size(), Label::size(&label1));
 } // label1 drops "Label 2" right before it goes out of scope.
 
+/* Error: missing lifetime specifier
+struct Ref {
+  s: &str,
+}
+*/
 #[derive(Debug)]
-enum Message {
+struct Ref<'a> {
+  _s: &'a str,
+}
+
+// '_ as the elided lifetime, inferred to the same lifetime as the only input.
+/*
+fn new_ref(s: &mut str) -> Ref<'_> {
+*/
+fn new_ref(s: &str) -> Ref<'_> {
+  Ref { _s: s }
+}
+
+fn struct_ref_lifetime() {
+  let mut s = String::from("hello");
+  let r1 = &mut s;
+  /* For lifetime checking, r2 is treated as an immutable/mutable reborrow from r1 accordingly. */
+  let r2 = new_ref(r1);
+  /* The original blocked
+  r1.push_str(", world");
+  */
+  /* If r1 is reborrowed by the param as a mutable one, this will also be blocked. */
+  //hello
+  println!("{r1}");
+  /* Without Reborrow, this violates simultaneous references rules.
+  let r2 = &s;
+  */
+  //Ref { _s: "hello" }
+  println!("{r2:?}");
+  // The original resumed
+  //hello
+  println!("{r1}");
+}
+
+#[derive(Debug)]
+enum Message<'a> {
   // Unit struct
   Quit,
   // Struct
   Pos { x: i32, y: i32 },
-  // Tuple struct
-  Write(String),
+  // Tuple structs
+  Text(String),
+  MutRef(&'a mut String),
 }
 
-impl Message {
-  fn foo(&self) {
+impl<'a> Message<'a> {
+  fn foo(&mut self) {
     match self {
       Message::Quit => println!("Quit"),
       Message::Pos { x, y } => println!("Pos: {x}, {y}"),
       /* Note that "matching on a reference type with a non-reference pattern implicitly borrows the
-       * contents", so don't use `ref` here to explicitly borrow again.
-      Message::Write(ref s) => println!("Write: {s}"),
+       * contents", so don't use `ref` here as Explicit Borrow. */
+      Message::Text(s) => println!("Text: {s}"),
+      /* Or use a reference pattern without Implicit Borrow, and therefore `ref` should be used here
+       * for Explicit Borrow to avoid Move for String.
+      &mut Message::Text(ref s) => println!("Text: {s}"),
       */
-      Message::Write(s) => println!("Write: {s}"),
+      /* Note that MutRef(&'a mut String) serves as the pattern source, not the dest slot for `s`
+       * here, which still "implicitly borrows the contents", resulting in `&mut &mut String`, which
+       * still works here due to auto-deref.
+      Message::MutRef(s) => {
+      */
+      /* Or reference pattern with Explicit Borrow to avoid Move for mutable references, `ref mut`
+       * here still results in `&mut &mut String`. */
+      &mut Message::MutRef(ref mut s) => {
+        s.push_str(", world");
+        println!("MutRef: {s}");
+      }
     }
   }
 }
 
 fn enums() {
-  let q = Message::Quit;
-  let m = Message::Pos { x: 1, y: 2 };
-  let w = Message::Write(String::from("hello"));
+  let mut quit = Message::Quit;
+  let mut pos = Message::Pos { x: 1, y: 2 };
+  let mut text = Message::Text(String::from("hello"));
+  let mut s = String::from("hello");
+  let mut mut_ref = Message::MutRef(&mut s);
   //Quit
-  q.foo();
+  quit.foo();
   //Pos: 1, 2
-  m.foo();
-  //Write: hello
-  w.foo();
-  //w = Write("hello")
-  dbg!(w);
+  pos.foo();
+  //Text: hello
+  text.foo();
+  //Text("hello")
+  println!("{text:?}");
+  //MutRef: hello, world
+  mut_ref.foo();
+  //MutRef("hello, world")
+  println!("{mut_ref:?}");
+  //hello, world
+  println!("{s}");
 }
 
 /*
@@ -149,8 +205,8 @@ fn op_on_nullable<T: std::fmt::Debug>(x: Option<T>, i: i32) {
 
   // Value-based
   match i {
-    3 => println!("{x:?} and three"),
-    7 => println!("{x:?} and Seven"),
+    0 => println!("{x:?} and ZERO"),
+    10 => println!("{x:?} and ten"),
     /* Equivalent to
     _ => println!("{x:?} and {i}"),
     */
@@ -162,53 +218,28 @@ fn op_on_nullable<T: std::fmt::Debug>(x: Option<T>, i: i32) {
 }
 
 fn options() {
+  let null: Option<i32> = None;
   let five = Some(5);
   let a = Some('a');
   let s = String::from("hello");
-  // Reference used to avoid Move for String
+  /* Borrow */
   let hello = Some(&s);
-  let null: Option<i32> = None;
+  /* Move
+  let hello = Some(s);
+  */
   // All Copy
-  //5 and three
-  op_on_nullable(five, 3);
-  //'a' and Seven
-  op_on_nullable(a, 7);
-  //"hello" and 10
-  op_on_nullable(hello, 10);
   op_on_nullable(null, 0);
-  //five = Some(5); a = Some('a'); &s = "hello"; hello = Some("hello"); null = None
-  dbg!(five, a, &s, hello, null);
-}
-
-#[derive(Debug)]
-enum MutRef<'a, T> {
-  Ref(&'a mut T),
-}
-
-fn generic_mut_ref() {
-  let mut s = String::from("hello");
-  let r1 = &mut s;
-  /* Implicit reborrow */
-  let mut r2 = MutRef::Ref(r1);
-  /* Some(T): Move for mutable references
-  let mut r2 = Some(r1);
-  */
-  /* Reborrow: The original blocked
-  println!("{r1}");
-  */
-  match r2 {
-    /* MutRef: Note that Ref(&'a mut T) serves as the pattern source, not the dest slot for `r`
-     * here, so `ref` is used to avoid Move for mutable references. */
-    MutRef::Ref(ref mut r) => r.push_str(", world"),
-    /* Some(T)
-    Some(ref mut r) => r.push_str(", world"),
-    _ => (),
-    */
-  }
-  //MutRef: Ref("hello, world")
-  //Some(T): Some("hello, world")
-  println!("{r2:?}");
-  // Reborrow: The original resumed: hello, world
-  /* Move: Error: borrow of moved value: r1 */
-  println!("{r1}");
+  //5 and ZERO
+  op_on_nullable(five, 0);
+  //'a' and ten
+  op_on_nullable(a, 10);
+  // Borrow: Copy for Option<&String>, Move for Option<&mut String>
+  // Move: Move for Option<String>
+  //"hello" and 1
+  op_on_nullable(hello, 1);
+  //None, Some(5), Some('a')
+  println!("{null:?}, {five:?}, {a:?}");
+  // Copy: Some("hello"), hello
+  /* Move: Error */
+  println!("{hello:?}, {s}");
 }

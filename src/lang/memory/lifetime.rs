@@ -26,13 +26,13 @@ fn borrow_checker() {
   println!("{r}");
 }
 
-// Auto-inferred as `fn new_ref<'a>(s: &'a str) -> &'a str`. For lifetime checking, the output
-// should be treated as the input, or an immutable/mutable reborrow from the input accordingly if
-// that input is a mutable reference can therefore reborrowed by `s` as an immutable/mutable one, no
-// matter whether that output itself is immutable or mutable.
-/*
+// For lifetime checking, the output should be treated as the input, or an immutable/mutable
+// reborrow from the input accordingly if that input is a mutable reference and therefore reborrowed
+// by `s` as an immutable/mutable one, no matter whether that output itself is immutable or mutable.
+/* Auto-inferred as `fn new_ref<'a>(s: &'a mut str) -> &'a str`
 fn new_ref(s: &mut str) -> &str {
 */
+/* Auto-inferred as `fn new_ref<'a>(s: &'a str) -> &'a str` */
 fn new_ref(s: &str) -> &str {
   s
   /* Note that there's no type specifier for reborrowing, so there's no way to specify return values
@@ -61,10 +61,10 @@ fn lifetime() {
   /* The original blocked
   r1.push_str(", world");
   */
-  /* If r1 is reborrowed by the param as a mutable one, this will also be block. */
+  /* If r1 is reborrowed by the param as a mutable one, this will also be blocked. */
   //hello
   println!("{r1}");
-  /* Without reborrowing, this violates simultaneous references rules.
+  /* Without Reborrow, this violates simultaneous references rules.
   let r2 = &s1;
   */
   //hello
