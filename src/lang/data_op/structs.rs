@@ -3,6 +3,7 @@ pub fn run() {
   struct_ref_lifetime();
   enums();
   options();
+  wrapper();
 }
 
 #[derive(Debug)]
@@ -242,4 +243,56 @@ fn options() {
   // Copy: Some("hello"), hello
   /* Move: Error */
   println!("{hello:?}, {s}");
+}
+
+fn wrapper() {
+  //Type: Option<String>
+  let mut w = Some(String::from("hello"));
+  //Type: Option<&mut String>
+  let p = w.as_mut();
+  //Type: &mut String
+  let v = p.unwrap();
+  v.push_str(", world!");
+  //Type: Option<&String>
+  let p = w.as_ref();
+  //Some("hello, world!")
+  println!("{p:?}");
+  //Type: Option<&mut str>
+  let p = w.as_deref_mut();
+  //Type: &mut str
+  let v = p.unwrap();
+  v[..1].make_ascii_uppercase();
+  //Type: Option<&str>
+  let p = w.as_deref();
+  //Some("Hello, world!")
+  println!("{p:?}");
+
+  //Type: Option<i32>
+  let mut w = Some(5);
+  //Type: Option<&mut i32>
+  let p1 = w.as_mut();
+  /* Move for Option<&mut i32>
+  let m = p1.copied();
+  */
+  /* Downgrade */
+  //Type: Option<&i32>
+  let p2 = p1.as_deref();
+  //Type: Option<i32>
+  let m = p2.copied();
+  //Type: &mut i32
+  let v = p1.unwrap();
+  // Don't use p1 and p2 any more since p1 is moved (unwrapped) and p2 borrows from p1.
+  *v += 1;
+  //Some(5), Some(6)
+  println!("{m:?}, {w:?}");
+
+  let mut w = None;
+  //None, Some(1)
+  println!("{:?}, {w:?}", w.replace(1));
+  //Some(1), None
+  println!("{:?}, {w:?}", w.take());
+  //1
+  println!("{:?}", w.get_or_insert(1));
+  //Some(1)
+  println!("{w:?}");
 }
